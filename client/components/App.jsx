@@ -174,16 +174,19 @@ export default function App() {
         </div>
 
         {/* Bottom Controls */}
-        <div className="h-36 px-4 py-2 border-t border-gray-200 bg-white">
-          <SessionControls
-            startSession={startSession}
-            stopSession={stopSession}
-            sendClientEvent={sendClientEvent}
-            sendTextMessage={sendTextMessage}
-            events={events}
-            isSessionActive={isSessionActive}
-          />
-        </div>
+        <div className="px-3 py-2 border-t border-gray-200 bg-white">
+  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+    <SessionControls
+      startSession={startSession}
+      stopSession={stopSession}
+      sendClientEvent={sendClientEvent}
+      sendTextMessage={sendTextMessage}
+      events={events}
+      isSessionActive={isSessionActive}
+    />
+  </div>
+</div>
+
       </main>
     </>
   );
