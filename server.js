@@ -3,6 +3,11 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import "dotenv/config";
 import OpenAI from "openai";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const isProd = process.env.NODE_ENV === "production";
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -11,14 +16,7 @@ const openai = new OpenAI({ apiKey });
 
 app.use(express.json());
 
-// Configure Vite middleware for React client
-const vite = await createViteServer({
-  server: { middlewareMode: true },
-  appType: "custom",
-});
-app.use(vite.middlewares);
-
-// ✅ NEW: Ask route using OpenAI Assistant API with vector store
+// Realtime assistant response route
 app.post("/ask", async (req, res) => {
   try {
     const userText = req.body.text;
@@ -33,7 +31,6 @@ app.post("/ask", async (req, res) => {
       content: userText,
     });
 
-    // ✅ Tell it to use file_search with your vector store
     const run = await openai.beta.threads.runs.create(thread.id, {
       assistant_id: "asst_EuIboyHjDFMN7HiHAMXF2pgO",
       tool_choice: "auto",
@@ -76,8 +73,7 @@ app.post("/ask", async (req, res) => {
   }
 });
 
-
-// API route for token generation (unchanged)
+// OpenAI realtime session token endpoint
 app.get("/token", async (req, res) => {
   try {
     const response = await fetch(
@@ -103,25 +99,50 @@ app.get("/token", async (req, res) => {
   }
 });
 
-// Render the React client (unchanged)
-app.use("*", async (req, res, next) => {
-  const url = req.originalUrl;
+// 🧱 Serve client
+if (isProd) {
+  // 🔒 Production build - serve pre-built dist/client
+  app.use(express.static(path.resolve(__dirname, "dist/client")));
 
-  try {
-    const template = await vite.transformIndexHtml(
-      url,
-      fs.readFileSync("./client/index.html", "utf-8")
-    );
-    const { render } = await vite.ssrLoadModule("./client/entry-server.jsx");
-    const appHtml = await render(url);
-    const html = template.replace(`<!--ssr-outlet-->`, appHtml?.html);
-    res.status(200).set({ "Content-Type": "text/html" }).end(html);
-  } catch (e) {
-    vite.ssrFixStacktrace(e);
-    next(e);
-  }
-});
+  app.get("*", async (req, res) => {
+    try {
+      const template = fs.readFileSync(path.resolve(__dirname, "dist/client/index.html"), "utf-8");
+      const { render } = await import(path.resolve(__dirname, "dist/server/index.js"));
+      const appHtml = await render(req.originalUrl);
+      const html = template.replace(`<!--ssr-outlet-->`, appHtml?.html);
+      res.status(200).set({ "Content-Type": "text/html" }).end(html);
+    } catch (e) {
+      console.error(e);
+      res.status(500).end("Internal Server Error");
+    }
+  });
+} else {
+  // 🧪 Dev mode - use Vite middleware
+  const vite = await createViteServer({
+    server: { middlewareMode: true },
+    appType: "custom",
+  });
+
+  app.use(vite.middlewares);
+
+  app.use("*", async (req, res, next) => {
+    const url = req.originalUrl;
+    try {
+      const template = await vite.transformIndexHtml(
+        url,
+        fs.readFileSync("./client/index.html", "utf-8")
+      );
+      const { render } = await vite.ssrLoadModule("/client/entry-server.jsx");
+      const appHtml = await render(url);
+      const html = template.replace(`<!--ssr-outlet-->`, appHtml?.html);
+      res.status(200).set({ "Content-Type": "text/html" }).end(html);
+    } catch (e) {
+      vite.ssrFixStacktrace(e);
+      next(e);
+    }
+  });
+}
 
 app.listen(port, () => {
-  console.log(`Express server running on *:${port}`);
+  console.log(`✅ Express server running on http://localhost:${port}`);
 });
