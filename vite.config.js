@@ -1,6 +1,6 @@
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import react from "@vitejs/plugin-react";
+import react from '@vitejs/plugin-react';
 
 const path = fileURLToPath(import.meta.url);
 
