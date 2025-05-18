@@ -8,10 +8,15 @@ export default function App() {
   const [events, setEvents] = useState([]);
   const [dataChannel, setDataChannel] = useState(null);
   const [transcriptBubbles, setTranscriptBubbles] = useState([]);
-  const [showOverlay, setShowOverlay] = useState(true); // ✅ Overlay state
+  const [showOverlay, setShowOverlay] = useState(true);
+  const [isClient, setIsClient] = useState(false); // ✅ NEW: Tracks client-side rendering
   const peerConnection = useRef(null);
   const audioElement = useRef(null);
   const transcriptContainerRef = useRef(null);
+
+  useEffect(() => {
+    setIsClient(true); // ✅ Set to true once on client
+  }, []);
 
   useEffect(() => {
     if (transcriptContainerRef.current) {
@@ -20,7 +25,7 @@ export default function App() {
   }, [transcriptBubbles]);
 
   async function startSession() {
-    setShowOverlay(false); // ✅ Hide overlay on start
+    setShowOverlay(false);
 
     const tokenResponse = await fetch("/token");
     const data = await tokenResponse.json();
@@ -128,7 +133,6 @@ export default function App() {
         setEvents([]);
         setTranscriptBubbles([]);
 
-        // ✅ Proactively send first assistant message
         sendTextMessage(
           "Hey there, it’s great to have you here. Let's chat about Learn Wall Street Academy. You can ask me about almost anything."
         );
@@ -137,29 +141,32 @@ export default function App() {
   }, [dataChannel]);
 
   return (
-    <>
-      {/* ✅ Overlay */}
-      {showOverlay && (
-        <div
-          onClick={startSession}
-          className="absolute inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center cursor-pointer transition-opacity hover:bg-opacity-50"
-        >
-          <div className="text-center px-6 py-4 bg-white rounded-xl shadow-lg">
-            <h2 className="text-xl font-bold mb-2">👋 Tap to talk with Professor Rich</h2>
-            <p className="text-sm text-gray-600">He’s ready to answer your questions.</p>
-          </div>
+  <>
+    {/* ✅ Overlay only shown on client */}
+    {isClient && showOverlay && (
+      <div
+        onClick={startSession}
+        className="absolute inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center cursor-pointer transition-opacity hover:bg-opacity-50"
+      >
+        <div className="text-center px-6 py-4 bg-white rounded-xl shadow-lg">
+          <h2 className="text-xl font-bold mb-2">👋 Tap to talk with Professor Rich</h2>
+          <p className="text-sm text-gray-600">He’s ready to answer your questions.</p>
         </div>
-      )}
+      </div>
+    )}
 
+    {/* ✅ Nav only shown on client to avoid SSR mismatch */}
+    {isClient && (
       <nav className="absolute top-0 left-0 right-0 h-16 flex items-center bg-white z-10">
         <div className="flex items-center gap-4 w-full m-4 pb-2 border-b border-gray-200">
           <img style={{ width: "34px" }} src={logo} />
           <h1 className="text-sm font-semibold">Professor Rich</h1>
         </div>
       </nav>
+    )}
 
+    {isClient && (
       <main className="absolute top-16 left-0 right-0 bottom-0 flex flex-col bg-white">
-        {/* Bubbles Section */}
         <div
           ref={transcriptContainerRef}
           className="flex-1 overflow-y-auto px-4 py-6 space-y-3"
@@ -173,21 +180,21 @@ export default function App() {
           ))}
         </div>
 
-        {/* Bottom Controls */}
         <div className="px-3 py-2 border-t border-gray-200 bg-white">
-  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-    <SessionControls
-      startSession={startSession}
-      stopSession={stopSession}
-      sendClientEvent={sendClientEvent}
-      sendTextMessage={sendTextMessage}
-      events={events}
-      isSessionActive={isSessionActive}
-    />
-  </div>
-</div>
-
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <SessionControls
+              startSession={startSession}
+              stopSession={stopSession}
+              sendClientEvent={sendClientEvent}
+              sendTextMessage={sendTextMessage}
+              events={events}
+              isSessionActive={isSessionActive}
+            />
+          </div>
+        </div>
       </main>
-    </>
-  );
+    )}
+  </>
+);
+
 }
