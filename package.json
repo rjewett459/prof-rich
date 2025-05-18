@@ -1,11 +1,9 @@
 {
   "type": "module",
   "scripts": {
-  "dev": "node server.js --dev",
+  "build": "vite build",
   "start": "node server.js",
-  "build": "npm run build:client",
-  "build:client": "npx vite build --outDir dist/client",
-  "devinstall": "zx ../../devinstall.mjs -- node server.js --dev",
+  "dev": "vite",
   "lint": "eslint . --ext .js,.jsx --fix"
 },
 

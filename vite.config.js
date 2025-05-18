@@ -1,12 +1,14 @@
+// vite.config.js
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  root: "./client",                      // 👈 tells Vite where to start
+  root: "./client", // 👈 base directory
   build: {
-    outDir: "../dist/client",            // 👈 output goes where Express expects
+    outDir: "../dist/client", // 👈 where Render looks
     emptyOutDir: true,
   },
 });
+
 
