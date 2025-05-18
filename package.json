@@ -1,14 +1,15 @@
 {
   "type": "module",
   "scripts": {
-    "dev": "node server.js --dev",
-    "start": "node server.js",
-    "build": "npm run build:client && npm run build:server",
-    "build:client": "vite build --outDir dist/client --ssrManifest",
-    "build:server": "vite build --outDir dist/server --ssr /index.js",
-    "devinstall": "zx ../../devinstall.mjs -- node server.js --dev",
-    "lint": "eslint . --ext .js,.jsx --fix"
-  },
+  "dev": "node server.js --dev",
+  "start": "node server.js",
+  "build": "npm run build:client && npm run build:server",
+  "build:client": "npx vite build --outDir dist/client --ssrManifest",
+  "build:server": "npx vite build --outDir dist/server --ssr /index.js",
+  "devinstall": "zx ../../devinstall.mjs -- node server.js --dev",
+  "lint": "eslint . --ext .js,.jsx --fix"
+}
+
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
     "dotenv": "^16.4.7",
