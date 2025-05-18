@@ -1,10 +1,12 @@
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-const path = fileURLToPath(import.meta.url);
-
-export default {
-  root: join(dirname(path), "client"),
+export default defineConfig({
   plugins: [react()],
-};
+  root: "./client",                      // 👈 tells Vite where to start
+  build: {
+    outDir: "../dist/client",            // 👈 output goes where Express expects
+    emptyOutDir: true,
+  },
+});
+
