@@ -104,43 +104,33 @@ if (isProd) {
   // 🔒 Production build - serve pre-built dist/client
   app.use(express.static(path.resolve(__dirname, "dist/client")));
 
-  app.get("*", async (req, res) => {
-    try {
-      const template = fs.readFileSync(path.resolve(__dirname, "dist/client/index.html"), "utf-8");
-      const { render } = await import(path.resolve(__dirname, "dist/server/index.js"));
-      const appHtml = await render(req.originalUrl);
-      const html = template.replace(`<!--ssr-outlet-->`, appHtml?.html);
-      res.status(200).set({ "Content-Type": "text/html" }).end(html);
-    } catch (e) {
-      console.error(e);
-      res.status(500).end("Internal Server Error");
-    }
+    app.get("*", (req, res) => {
+    res.sendFile(path.resolve(__dirname, "dist/client/index.html"));
   });
+
 } else {
   // 🧪 Dev mode - use Vite middleware
   const vite = await createViteServer({
-    server: { middlewareMode: true },
-    appType: "custom",
-  });
+  server: { middlewareMode: true },
+  appType: "custom",
+});
 
-  app.use(vite.middlewares);
+app.use(vite.middlewares);
 
-  app.use("*", async (req, res, next) => {
-    const url = req.originalUrl;
-    try {
-      const template = await vite.transformIndexHtml(
-        url,
-        fs.readFileSync("./client/index.html", "utf-8")
-      );
-      const { render } = await vite.ssrLoadModule("/client/entry-server.jsx");
-      const appHtml = await render(url);
-      const html = template.replace(`<!--ssr-outlet-->`, appHtml?.html);
-      res.status(200).set({ "Content-Type": "text/html" }).end(html);
-    } catch (e) {
-      vite.ssrFixStacktrace(e);
-      next(e);
-    }
-  });
+app.use("*", async (req, res, next) => {
+  try {
+    const html = await vite.transformIndexHtml(
+      req.originalUrl,
+      fs.readFileSync("./client/index.html", "utf-8")
+    );
+    res.status(200).set({ "Content-Type": "text/html" }).end(html);
+  } catch (e) {
+    vite.ssrFixStacktrace(e);
+    next(e);
+  }
+});
+
+
 }
 
 app.listen(port, () => {
