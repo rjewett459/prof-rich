@@ -4,7 +4,7 @@
   "dev": "node server.js --dev",
   "start": "node server.js",
   "build": "npm run build:client && npm run build:server",
-  "build:client": "npx vite build --outDir dist/client --ssrManifest",
+  "build:client": "npx vite build --outDir dist/client"
   "build:server": "npx vite build --outDir dist/server --ssr index.jsx",
   "devinstall": "zx ../../devinstall.mjs -- node server.js --dev",
   "lint": "eslint . --ext .js,.jsx --fix"
