@@ -20,9 +20,7 @@ app.use(express.json());
 app.post("/ask", async (req, res) => {
   try {
     const userText = req.body.text;
-    if (!userText) {
-      return res.status(400).json({ error: "Missing text" });
-    }
+    if (!userText) return res.status(400).json({ error: "Missing text" });
 
     const thread = await openai.beta.threads.create();
 
@@ -45,7 +43,6 @@ app.post("/ask", async (req, res) => {
     while (runStatus.status !== "completed") {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-
       if (["failed", "expired", "cancelled"].includes(runStatus.status)) {
         throw new Error(`Run ${runStatus.status}`);
       }
@@ -73,7 +70,7 @@ app.post("/ask", async (req, res) => {
   }
 });
 
-// OpenAI realtime session token endpoint
+// Token endpoint
 app.get("/token", async (req, res) => {
   try {
     const response = await fetch(
@@ -90,7 +87,6 @@ app.get("/token", async (req, res) => {
         }),
       }
     );
-
     const data = await response.json();
     res.json(data);
   } catch (error) {
@@ -99,38 +95,33 @@ app.get("/token", async (req, res) => {
   }
 });
 
-// 🧱 Serve client
+// Serve static client
 if (isProd) {
-  // 🔒 Production build - serve pre-built dist/client
   app.use(express.static(path.resolve(__dirname, "dist/client")));
 
-    app.get("*", (req, res) => {
+  app.get("*", (req, res) => {
     res.sendFile(path.resolve(__dirname, "dist/client/index.html"));
   });
-
 } else {
-  // 🧪 Dev mode - use Vite middleware
   const vite = await createViteServer({
-  server: { middlewareMode: true },
-  appType: "custom",
-});
+    server: { middlewareMode: true },
+    appType: "custom",
+  });
 
-app.use(vite.middlewares);
+  app.use(vite.middlewares);
 
-app.use("*", async (req, res, next) => {
-  try {
-    const html = await vite.transformIndexHtml(
-      req.originalUrl,
-      fs.readFileSync("./client/index.html", "utf-8")
-    );
-    res.status(200).set({ "Content-Type": "text/html" }).end(html);
-  } catch (e) {
-    vite.ssrFixStacktrace(e);
-    next(e);
-  }
-});
-
-
+  app.use("*", async (req, res, next) => {
+    try {
+      const html = await vite.transformIndexHtml(
+        req.originalUrl,
+        fs.readFileSync("./client/index.html", "utf-8")
+      );
+      res.status(200).set({ "Content-Type": "text/html" }).end(html);
+    } catch (e) {
+      vite.ssrFixStacktrace(e);
+      next(e);
+    }
+  });
 }
 
 app.listen(port, () => {
