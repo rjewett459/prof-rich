@@ -8,7 +8,7 @@
   "build:server": "npx vite build --outDir dist/server --ssr /index.js",
   "devinstall": "zx ../../devinstall.mjs -- node server.js --dev",
   "lint": "eslint . --ext .js,.jsx --fix"
-}
+},
 
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
