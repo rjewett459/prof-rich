@@ -8,7 +8,7 @@
   "build:server": "npx vite build --outDir dist/server --ssr ./client/index.jsx",
   "devinstall": "zx ../../devinstall.mjs -- node server.js --dev",
   "lint": "eslint . --ext .js,.jsx --fix"
-}
+},
 
   "dependencies": {
     "@vitejs/plugin-react": "^4.4.1",
