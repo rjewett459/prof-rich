@@ -16,12 +16,29 @@ const openai = new OpenAI({ apiKey });
 
 app.use(express.json());
 
-// Realtime assistant response route
+// Realtime assistant response route with topic guardrails
 app.post("/ask", async (req, res) => {
   try {
     const userText = req.body.text;
     if (!userText) return res.status(400).json({ error: "Missing text" });
 
+    // === ✅ TOPIC FILTERING (Professor Rich guardrail) ===
+    const allowedKeywords = [
+      "stock", "valuation", "portfolio", "risk", "diversification",
+      "beta", "DCF", "P/E", "investment", "hedge", "volatility", "asset"
+    ];
+    const isInScope = allowedKeywords.some((word) =>
+      userText.toLowerCase().includes(word)
+    );
+
+    if (!isInScope) {
+      return res.json({
+        text: "Professor Rich can only assist with topics related to Stock Valuation, Risk Management, or Portfolio Construction. Please ask a finance-related question.",
+        audio: null,
+      });
+    }
+
+    // === CONTINUE WITH OPENAI THREAD & RUN ===
     const thread = await openai.beta.threads.create();
 
     await openai.beta.threads.messages.create(thread.id, {
@@ -30,11 +47,11 @@ app.post("/ask", async (req, res) => {
     });
 
     const run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: "asst_EuIboyHjDFMN7HiHAMXF2pgO",
+      assistant_id: "asst_EuIboyHjDFMN7HiHAMXF2pgO", // <-- Replace with your actual Assistant ID
       tool_choice: "auto",
       tool_resources: {
         file_search: {
-          vector_store_ids: ["vs_68265a0e70b081918938e8df5060d328"],
+          vector_store_ids: ["vs_68265a0e70b081918938e8df5060d328"], // <-- Replace with your vector store ID
         },
       },
     });
@@ -70,7 +87,7 @@ app.post("/ask", async (req, res) => {
   }
 });
 
-// Token endpoint
+// Token endpoint for realtime voice
 app.get("/token", async (req, res) => {
   try {
     const response = await fetch(
@@ -95,7 +112,7 @@ app.get("/token", async (req, res) => {
   }
 });
 
-// Serve static client
+// Serve static client build in production
 if (isProd) {
   app.use(express.static(path.resolve(__dirname, "dist/client")));
 
