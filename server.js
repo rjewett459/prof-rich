@@ -33,7 +33,7 @@ app.post("/ask", async (req, res) => {
 
     if (!isInScope) {
       return res.json({
-        text: "Professor Rich can only assist with topics related to Stock Valuation, Risk Management, or Portfolio Construction. Please ask a finance-related question.",
+        text: "You may only answer questions related to Stock Valuation, Risk Management, or Portfolio Construction. Do not engage with unrelated questions or speculate. If asked anything outside of scope, politely decline and guide the user back to the lesson.",
         audio: null,
       });
     }
