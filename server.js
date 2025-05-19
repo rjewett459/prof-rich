@@ -68,6 +68,19 @@ app.post("/ask", async (req, res) => {
     const messages = await openai.beta.threads.messages.list(thread.id);
     const reply = messages.data[0]?.content[0]?.text?.value || "No response available.";
 
+// === ✅ OUTPUT FILTER: Block Off-Topic Replies ===
+const disallowedWords = ["politics", "religion", "health", "crypto"];
+const isOffTopic = disallowedWords.some(word =>
+  reply.toLowerCase().includes(word)
+);
+
+if (isOffTopic) {
+  return res.json({
+    text: "Professor Rich is limited to financial topics like Stock Valuation, Risk Management, or Portfolio Construction.",
+    audio: null,
+  });
+}
+
     const speechResponse = await openai.audio.speech.create({
       model: "tts-1",
       voice: "sage",
