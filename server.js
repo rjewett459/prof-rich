@@ -16,29 +16,61 @@ const openai = new OpenAI({ apiKey });
 
 app.use(express.json());
 
-// Realtime assistant response route with topic guardrails
+// Realtime assistant response route with full guardrails
 app.post("/ask", async (req, res) => {
   try {
     const userText = req.body.text;
     if (!userText) return res.status(400).json({ error: "Missing text" });
 
-    // === ✅ TOPIC FILTERING (Professor Rich guardrail) ===
+    // === 🔒 INPUT FILTERS (Professor Rich Scope Lock) ===
     const allowedKeywords = [
       "stock", "valuation", "portfolio", "risk", "diversification",
-      "beta", "DCF", "P/E", "investment", "hedge", "volatility", "asset"
+      "investment", "return", "asset", "market", "volatility", "hedge",
+      "interest", "dividend", "capital", "DCF", "P/E", "equity", "bond"
     ];
-    const isInScope = allowedKeywords.some((word) =>
-      userText.toLowerCase().includes(word)
-    );
 
-    if (!isInScope) {
+    const forbiddenKeywords = [
+      // Music & entertainment
+      "rap", "hip hop", "lyrics", "music", "song", "album", "artist", "concert", "dj", "singer", "celebrity",
+
+      // Politics
+      "politics", "election", "democrat", "republican", "biden", "trump", "congress", "senate", "government", "policy", "president",
+
+      // Religion
+      "religion", "church", "bible", "jesus", "god", "pray", "faith", "spiritual", "pastor", "sermon",
+
+      // Health
+      "doctor", "medical", "medicine", "mental health", "hospital", "vaccine", "covid", "fitness", "diet", "therapy", "sick", "disease",
+
+      // Crypto
+      "crypto", "bitcoin", "ethereum", "blockchain", "nft", "web3", "token", "wallet", "mining",
+
+      // Tech
+      "coding", "python", "software", "hardware", "ai", "chatgpt",
+
+      // Pop culture
+      "tiktok", "instagram", "youtube", "movie", "netflix", "tv", "actor", "streaming", "celebrity",
+
+      // Sports
+      "football", "basketball", "nba", "nfl", "soccer", "mlb", "hockey", "team", "athlete", "match",
+
+      // Other
+      "dating", "relationships", "love", "astrology", "horoscope", "alien", "ufo", "dream", "conspiracy"
+    ];
+
+    const input = userText.toLowerCase();
+
+    const isAllowed = allowedKeywords.some((word) => input.includes(word));
+    const isForbidden = forbiddenKeywords.some((word) => input.includes(word));
+
+    if (!isAllowed || isForbidden) {
       return res.json({
-        text: "You may only answer questions related to Stock Valuation, Risk Management, or Portfolio Construction. Do not engage with unrelated questions or speculate. If asked anything outside of scope, politely decline and guide the user back to the lesson.",
+        text: "Professor Rich only answers finance-related questions like Stock Valuation, Risk Management, or Portfolio Construction. Please ask a question on those topics.",
         audio: null,
       });
     }
 
-    // === CONTINUE WITH OPENAI THREAD & RUN ===
+    // === 🧠 Create Assistant Run ===
     const thread = await openai.beta.threads.create();
 
     await openai.beta.threads.messages.create(thread.id, {
@@ -47,11 +79,11 @@ app.post("/ask", async (req, res) => {
     });
 
     const run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: "asst_EuIboyHjDFMN7HiHAMXF2pgO", // <-- Replace with your actual Assistant ID
+      assistant_id: "asst_EuIboyHjDFMN7HiHAMXF2pgO", // <-- Use your Assistant ID
       tool_choice: "auto",
       tool_resources: {
         file_search: {
-          vector_store_ids: ["vs_68265a0e70b081918938e8df5060d328"], // <-- Replace with your vector store ID
+          vector_store_ids: ["vs_68265a0e70b081918938e8df5060d328"], // <-- Use your Vector Store ID
         },
       },
     });
@@ -68,19 +100,19 @@ app.post("/ask", async (req, res) => {
     const messages = await openai.beta.threads.messages.list(thread.id);
     const reply = messages.data[0]?.content[0]?.text?.value || "No response available.";
 
-// === ✅ OUTPUT FILTER: Block Off-Topic Replies ===
-const disallowedWords = ["politics", "religion", "health", "crypto"];
-const isOffTopic = disallowedWords.some(word =>
-  reply.toLowerCase().includes(word)
-);
+    // === 🔒 OUTPUT FILTER (Failsafe Catch) ===
+    const isOffTopic = forbiddenKeywords.some((word) =>
+      reply.toLowerCase().includes(word)
+    );
 
-if (isOffTopic) {
-  return res.json({
-    text: "Professor Rich is limited to financial topics like Stock Valuation, Risk Management, or Portfolio Construction.",
-    audio: null,
-  });
-}
+    if (isOffTopic) {
+      return res.json({
+        text: "That response was off-topic. Professor Rich only discusses financial education. Please stay within the approved curriculum.",
+        audio: null,
+      });
+    }
 
+    // === 🎧 Generate Audio ===
     const speechResponse = await openai.audio.speech.create({
       model: "tts-1",
       voice: "sage",
@@ -100,7 +132,7 @@ if (isOffTopic) {
   }
 });
 
-// Token endpoint for realtime voice
+// === 🎙 Realtime Token Endpoint ===
 app.get("/token", async (req, res) => {
   try {
     const response = await fetch(
@@ -125,7 +157,7 @@ app.get("/token", async (req, res) => {
   }
 });
 
-// Serve static client build in production
+// === 🖥️ Serve Static Client Build ===
 if (isProd) {
   app.use(express.static(path.resolve(__dirname, "dist/client")));
 
