@@ -184,9 +184,10 @@ app.post("/ask", async (req, res) => {
 // --- Token endpoint for realtime voice ---
 // --- Token endpoint for realtime voice using existing tool ---
 // --- Token endpoint for realtime voice using Professor Rich with guardrails ---
+// --- Token endpoint for realtime voice using Professor Rich with guardrails & error trapping ---
 app.get("/token", async (req, res) => {
   try {
-    const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
+    const resp = await fetch("https://api.openai.com/v1/realtime/sessions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -206,19 +207,13 @@ You are Professor Rich — a calm, confident finance professor who explains inve
 - Economic principles that impact investing
 
 🚫 Do not answer questions about:
-- Politics
-- Religion
-- Pop culture or celebrities
-- Entertainment
-- Jokes, personal opinions, or speculation
-- Anything not directly related to finance or investing
-
-If asked about any off-topic subject, respond:
+- Politics, religion, entertainment, jokes, or off-topic subjects.
+If asked off-topic, respond:
 "I'm here to help you understand finance and investing. Let’s stick to those topics!"
 
 ✅ Always prioritize the knowledge base using the 'ensure_knowledge_base_usage' tool.
-✅ Only fall back to your training if the documents do not contain the answer and the question is still finance-related.
-✅ Confirm stock tickers, company names, or financial terms out loud for clarity.
+✅ Only fall back to training material if the documents don't cover the question.
+✅ Confirm any financial terms or ticker symbols by repeating them back.
         `.trim(),
         tools: [
           {
@@ -230,14 +225,8 @@ If asked about any off-topic subject, respond:
                 type: "object",
                 required: ["documents_vector_store", "training_fallback"],
                 properties: {
-                  documents_vector_store: {
-                    type: "boolean",
-                    description: "Indicates whether to prioritize using the documents from the vector store"
-                  },
-                  training_fallback: {
-                    type: "boolean",
-                    description: "Indicates whether to use the up-to-date training as a fallback after exhausting the document knowledge base"
-                  }
+                  documents_vector_store: { type: "boolean" },
+                  training_fallback:     { type: "boolean" }
                 },
                 additionalProperties: false
               }
@@ -247,19 +236,49 @@ If asked about any off-topic subject, respond:
       }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: "Unknown error from OpenAI token endpoint" }));
-      console.error(`OpenAI token API error: ${response.status}`, errorData);
-      throw new Error(`Failed to generate token from OpenAI: ${errorData.message || response.statusText}`);
+    // Check HTTP status
+    if (!resp.ok) {
+      const errBody = await resp.text().catch(() => "");
+      console.error(`[Token] HTTP ${resp.status}:`, errBody);
+      return res.status(500).json({
+        error: "OpenAI token endpoint returned an error",
+        status: resp.status,
+        details: errBody
+      });
     }
 
-    const data = await response.json();
-    res.json(data);
-  } catch (error) {
-    console.error("Token generation error:", error);
-    res.status(500).json({ error: "Failed to generate token", details: error.message });
+    // Parse JSON safely
+    let data;
+    try {
+      data = await resp.json();
+    } catch (parseErr) {
+      console.error("[Token] JSON parse error:", parseErr);
+      return res.status(500).json({
+        error: "Failed to parse token response",
+        details: parseErr.message
+      });
+    }
+
+    // Validate expected fields
+    if (!data.token) {
+      console.error("[Token] Missing token in response:", data);
+      return res.status(500).json({
+        error: "Token not found in OpenAI response",
+        response: data
+      });
+    }
+
+    // Success
+    return res.json({ token: data.token, expires_in: data.expires_in });
+  } catch (err) {
+    console.error("[Token] Unexpected error:", err);
+    return res.status(500).json({
+      error: "Unexpected server error generating token",
+      details: err.message
+    });
   }
 });
+
 
 
 
