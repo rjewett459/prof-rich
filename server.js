@@ -147,8 +147,17 @@ app.post("/ask", async (req, res) => {
       await waitForRunCompletion(thread.id, run.id, openai);
 
       messages = await openai.beta.threads.messages.list(thread.id, { order: 'desc', limit: 1 });
-      reply = messages.data[0]?.content[0]?.text?.value || "No useful answer from fallback.";
-      console.log("💡 Fallback reply:", reply);
+
+let rawMessage = null;
+try {
+  rawMessage = messages?.data?.[0]?.content?.[0]?.text?.value;
+} catch (e) {
+  console.error("💥 Error reading message content:", e);
+}
+
+reply = rawMessage || "No useful answer from fallback.";
+console.log("💡 Fallback reply:", reply);
+
     }
 
     // === Optional: Generate speech (only if meaningful reply) ===
