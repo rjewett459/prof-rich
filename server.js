@@ -220,26 +220,27 @@ If asked off-topic, respond:
 ✅ Always prioritize the knowledge base using the 'ensure_knowledge_base_usage' tool.
 ✅ Only fall back to model training if the documents don’t contain the answer.
 ✅ Confirm stock tickers, financial terms, or company names out loud to avoid confusion.
-  `.trim(),
-  tools: [
-    {
-      type: "function",
-      function: {
-        name: "ensure_knowledge_base_usage",
-        description: "Ensures that the assistant always draws knowledge from attached documents in the vector store before using its up-to-date training.",
-        parameters: {
-          type: "object",
-          required: ["documents_vector_store", "training_fallback"],
-          properties: {
-            documents_vector_store: { type: "boolean" },
-            training_fallback: { type: "boolean" }
-          },
-          additionalProperties: false
-        }
-      }
-    }
-  ]
-}),
+        `.trim(),
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "ensure_knowledge_base_usage",
+              description: "Ensures that the assistant always draws knowledge from attached documents in the vector store before using its up-to-date training.",
+              parameters: {
+                type: "object",
+                required: ["documents_vector_store", "training_fallback"],
+                properties: {
+                  documents_vector_store: { type: "boolean" },
+                  training_fallback: { type: "boolean" }
+                },
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }) // ✅ Corrected closing parenthesis here
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -260,10 +261,6 @@ If asked off-topic, respond:
     res.status(500).json({ error: "Token generation failed", details: error.message });
   }
 });
-
-
-
-
 
 // --- Serve static site ---
 if (isProd) {
