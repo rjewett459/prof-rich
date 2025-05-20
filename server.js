@@ -300,8 +300,7 @@ if (isProd) {
 
       app.use(vite.middlewares);
 
-      const clientHtmlPath = path.resolve(__dirname, "../client/index.html"); // Assuming client is one level up and then in 'client' folder
-                                                                            // Adjust if your client/index.html is elsewhere, e.g. path.resolve(__dirname, "client/index.html")
+      const clientHtmlPath = path.resolve(__dirname, "client/index.html");
 
       app.use("*", async (req, res, next) => {
         try {
