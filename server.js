@@ -71,11 +71,26 @@ async function waitForRunCompletion(threadId, runId, openaiInstance) {
   }
   return runStatus;
 }
+function isFinanceRelated(input) {
+  const allowedKeywords = [
+    "stock", "investment", "portfolio", "risk", "diversification",
+    "valuation", "equity", "return", "market", "bond", "asset", "capital",
+    "economics", "interest", "financial", "dividend", "DCF", "P/E"
+  ];
+  const inputLower = input.toLowerCase();
+  return allowedKeywords.some(word => inputLower.includes(word));
+}
 
 // --- AI Assistant Route ---
 app.post("/ask", async (req, res) => {
   try {
     const userText = req.body.text;
+    
+    if (!isFinanceRelated(userText)) {
+  return res.json({
+    text: "Professor Rich only answers finance-related questions. Let’s stick to investing, markets, and money topics.",
+    audio: null
+    }
     if (!userText) {
       return res.status(400).json({ error: "Missing text in request body" });
     }
