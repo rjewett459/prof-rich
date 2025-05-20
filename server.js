@@ -87,6 +87,21 @@ app.post("/ask", async (req, res) => {
         // Depending on strictness, you might want to return an error here
         // return res.status(500).json({ error: "Vector Store ID is not configured." });
     }
+    run = await openai.beta.threads.runs.create(thread.id, {
+  assistant_id: assistantId,
+  tool_choice: {
+    type: "function",
+    function: "ensure_knowledge_base_usage"
+  },
+  tool_resources: {
+    function: {
+      ensure_knowledge_base_usage: {
+        documents_vector_store: true,
+        training_fallback: true
+      }
+    }
+  }
+});
 
 
     const thread = await openai.beta.threads.create();
@@ -160,24 +175,31 @@ console.log("💡 Fallback reply:", reply);
 
     }
 
-    // === Optional: Generate speech (only if meaningful reply) ===
-    let base64Audio = null;
-    if (reply && reply.length >= speechReplyMinLength) {
-      try {
-        console.log("Generating speech...");
-        const speechResponse = await openai.audio.speech.create({
-          model: "tts-1", // Or make this configurable
-          voice: "sage",   // Or make this configurable
-          input: reply,
-        });
-        const audioBuffer = await speechResponse.arrayBuffer();
-        base64Audio = Buffer.from(audioBuffer).toString("base64");
-        console.log("Speech generated.");
-      } catch (speechError) {
-        console.error("Speech generation error:", speechError);
-        // Continue without audio if speech generation fails
-      }
-    }
+  // === Optional: Generate speech (only if meaningful reply) ===
+let base64Audio = null;
+if (reply && reply.length >= speechReplyMinLength) {
+  try {
+    console.log("Generating speech...");
+
+    // ✅ Extract voice config from env first
+    const voiceModel = process.env.VOICE_MODEL || "tts-1";
+    const voiceName = process.env.VOICE_NAME || "sage";
+
+    const speechResponse = await openai.audio.speech.create({
+      model: voiceModel,
+      voice: voiceName,
+      input: reply,
+    });
+
+    const audioBuffer = await speechResponse.arrayBuffer();
+    base64Audio = Buffer.from(audioBuffer).toString("base64");
+    console.log("Speech generated.");
+  } catch (speechError) {
+    console.error("Speech generation error:", speechError);
+    // Continue without audio if speech generation fails
+  }
+}
+
 
     res.json({
       text: reply,
