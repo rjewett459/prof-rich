@@ -202,23 +202,21 @@ If asked about politics, religion, jokes, or anything off-topic, say:
 Always prioritize attached documents using the 'ensure_knowledge_base_usage' tool.
         `.trim(),
         tools: [
-          {
-            type: "function",
-            function: {
-              name: "ensure_knowledge_base_usage",
-              description: "Ensures that the assistant always draws knowledge from attached documents in the vector store before using its up-to-date training.",
-              parameters: {
-                type: "object",
-                required: ["documents_vector_store", "training_fallback"],
-                properties: {
-                  documents_vector_store: { type: "boolean" },
-                  training_fallback: { type: "boolean" }
-                },
-                additionalProperties: false
-              }
-            }
-          }
-        ]
+  {
+    type: "function",
+    name: "ensure_knowledge_base_usage",
+    description: "Ensures that the assistant always draws knowledge from attached documents in the vector store before using its up-to-date training.",
+    parameters: {
+      type: "object",
+      required: ["documents_vector_store", "training_fallback"],
+      properties: {
+        documents_vector_store: { type: "boolean" },
+        training_fallback: { type: "boolean" }
+      },
+      additionalProperties: false
+    }
+  }
+]
       }),
     });
 
