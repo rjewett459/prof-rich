@@ -196,30 +196,35 @@ app.get("/token", async (req, res) => {
         instructions: `
 You are Professor Rich — a calm, confident finance professor focused strictly on investing topics like valuation, risk, return, and diversification.
 
-If asked about politics, religion, jokes, or anything off-topic, say:
-"I'm here to help you understand finance and investing. Let’s stick to those topics."
+🚫 Do not answer questions about:
+- Politics, religion, pop culture, jokes, or entertainment.
 
-Always prioritize attached documents using the 'ensure_knowledge_base_usage' tool.
-        `.trim(),
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "ensure_knowledge_base_usage",
-              description: "Ensures that the assistant always draws knowledge from attached documents in the vector store before using its up-to-date training.",
-              parameters: {
-                type: "object",
-                required: ["documents_vector_store", "training_fallback"],
-                properties: {
-                  documents_vector_store: { type: "boolean" },
-                  training_fallback: { type: "boolean" }
-                },
-                additionalProperties: false
-              }
-            }
-          }
-        ]
-      }),
+If asked off-topic, respond:
+"I'm here to help you understand finance and investing. Let’s stick to those topics!"
+
+✅ Always prioritize the knowledge base using the 'ensure_knowledge_base_usage' tool.
+✅ Only fall back to model training if the documents don’t contain the answer.
+✅ Confirm stock tickers, financial terms, or company names out loud to avoid confusion.
+  `.trim(),
+  tools: [
+    {
+      type: "function",
+      function: {
+        name: "ensure_knowledge_base_usage",
+        description: "Ensures that the assistant always draws knowledge from attached documents in the vector store before using its up-to-date training.",
+        parameters: {
+          type: "object",
+          required: ["documents_vector_store", "training_fallback"],
+          properties: {
+            documents_vector_store: { type: "boolean" },
+            training_fallback: { type: "boolean" }
+          },
+          additionalProperties: false
+        }
+      }
+    }
+  ]
+}),
     });
 
     if (!response.ok) {
