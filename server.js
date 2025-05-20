@@ -182,27 +182,58 @@ app.post("/ask", async (req, res) => {
 });
 
 // --- Token endpoint for realtime voice ---
+// --- Token endpoint for realtime voice using existing tool ---
 app.get("/token", async (req, res) => {
   try {
-    const response = await fetch(
-      "https://api.openai.com/v1/realtime/sessions", // This endpoint might change, verify with OpenAI docs
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: realtimeModelName,
-          voice: "verse", // Make this configurable if needed
-        }),
-      }
-    );
+    const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini-realtime-preview",
+        voice: "sage",
+        instructions: `
+You are Professor Rich — a calm, confident finance professor. 
+You help students understand investing topics such as diversification, asset allocation, stock valuation, risk, and return modeling.
+When answering questions, always use the attached document knowledge base via the ensure_knowledge_base_usage tool.
+Only fall back to your training if the documents don't cover the topic.
+Repeat ticker symbols and financial terms for confirmation if the user says them aloud.
+        `.trim(),
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "ensure_knowledge_base_usage",
+              description: "Ensures that the assistant always draws knowledge from attached documents in the vector store before using its up-to-date training.",
+              parameters: {
+                type: "object",
+                required: ["documents_vector_store", "training_fallback"],
+                properties: {
+                  documents_vector_store: {
+                    type: "boolean",
+                    description: "Indicates whether to prioritize using the documents from the vector store"
+                  },
+                  training_fallback: {
+                    type: "boolean",
+                    description: "Indicates whether to use the up-to-date training as a fallback after exhausting the document knowledge base"
+                  }
+                },
+                additionalProperties: false
+              }
+            }
+          }
+        ]
+      }),
+    });
+
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: "Unknown error from OpenAI token endpoint" }));
-        console.error(`OpenAI token API error: ${response.status}`, errorData);
-        throw new Error(`Failed to generate token from OpenAI: ${errorData.message || response.statusText}`);
+      const errorData = await response.json().catch(() => ({ message: "Unknown error from OpenAI token endpoint" }));
+      console.error(`OpenAI token API error: ${response.status}`, errorData);
+      throw new Error(`Failed to generate token from OpenAI: ${errorData.message || response.statusText}`);
     }
+
     const data = await response.json();
     res.json(data);
   } catch (error) {
@@ -210,6 +241,7 @@ app.get("/token", async (req, res) => {
     res.status(500).json({ error: "Failed to generate token", details: error.message });
   }
 });
+
 
 // --- Serve static site ---
 if (isProd) {
