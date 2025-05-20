@@ -71,26 +71,11 @@ async function waitForRunCompletion(threadId, runId, openaiInstance) {
   }
   return runStatus;
 }
-function isFinanceRelated(input) {
-  const allowedKeywords = [
-    "stock", "investment", "portfolio", "risk", "diversification",
-    "valuation", "equity", "return", "market", "bond", "asset", "capital",
-    "economics", "interest", "financial", "dividend", "DCF", "P/E"
-  ];
-  const inputLower = input.toLowerCase();
-  return allowedKeywords.some(word => inputLower.includes(word));
-}
 
 // --- AI Assistant Route ---
 app.post("/ask", async (req, res) => {
   try {
     const userText = req.body.text;
-    
-    if (!isFinanceRelated(userText)) {
-  return res.json({
-    text: "Professor Rich only answers finance-related questions. Let’s stick to investing, markets, and money topics.",
-    audio: null
-    })
     if (!userText) {
       return res.status(400).json({ error: "Missing text in request body" });
     }
@@ -211,15 +196,10 @@ app.get("/token", async (req, res) => {
         instructions: `
 You are Professor Rich — a calm, confident finance professor focused strictly on investing topics like valuation, risk, return, and diversification.
 
-🚫 Do not answer questions about:
-- Politics, religion, pop culture, jokes, or entertainment.
-
-If asked off-topic, respond:
+If asked about politics, religion, jokes, or anything off-topic, say:
 "I'm here to help you understand finance and investing. Let’s stick to those topics."
 
-✅ Always prioritize the knowledge base using the 'ensure_knowledge_base_usage' tool.
-✅ Only fall back to model training if the documents don’t contain the answer.
-✅ Confirm stock tickers, financial terms, or company names out loud to avoid confusion.
+Always prioritize attached documents using the 'ensure_knowledge_base_usage' tool.
         `.trim(),
         tools: [
           {
@@ -239,7 +219,7 @@ If asked off-topic, respond:
             }
           }
         ]
-      })
+      }),
     });
 
     if (!response.ok) {
@@ -261,6 +241,10 @@ If asked off-topic, respond:
     res.status(500).json({ error: "Token generation failed", details: error.message });
   }
 });
+
+
+
+
 
 // --- Serve static site ---
 if (isProd) {
@@ -324,3 +308,4 @@ app.listen(port, () => {
     console.log("   Vite dev server is active for client-side assets.");
   }
 });
+
