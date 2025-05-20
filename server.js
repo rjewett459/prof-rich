@@ -240,7 +240,6 @@ If asked off-topic, respond:
     }
   ]
 }),
-    });
 
     if (!response.ok) {
       const errorText = await response.text();
