@@ -90,7 +90,7 @@ app.post("/ask", async (req, res) => {
   return res.json({
     text: "Professor Rich only answers finance-related questions. Let’s stick to investing, markets, and money topics.",
     audio: null
-    }
+    })
     if (!userText) {
       return res.status(400).json({ error: "Missing text in request body" });
     }
