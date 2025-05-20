@@ -237,11 +237,11 @@ res.json({
   token: data.client_secret.value,
   expires_in: data.client_secret.expires_at
 });
-
-
-
-
-
+  } catch (error) {
+    console.error("[TOKEN ERROR] Unexpected:", error);
+    res.status(500).json({ error: "Token generation failed", details: error.message });
+  }
+}); // ✅ This must be present and closed!
 
 // --- Serve static site ---
 if (isProd) {
@@ -305,4 +305,3 @@ app.listen(port, () => {
     console.log("   Vite dev server is active for client-side assets.");
   }
 });
-
