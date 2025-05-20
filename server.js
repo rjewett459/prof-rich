@@ -71,46 +71,72 @@ app.post("/ask", async (req, res) => {
     }
 
     // === 🧠 Create Assistant Run ===
-    const thread = await openai.beta.threads.create();
+    // Confirm the vector store is ready
+const vectorStoreId = "vs_68265a0e70b081918938e8df5060d328";
 
-    await openai.beta.threads.messages.create(thread.id, {
-      role: "user",
-      content: userText,
-    });
+const vectorStoreStatus = await openai.beta.vectorStores.retrieve(vectorStoreId);
+if (vectorStoreStatus.status !== "completed") {
+  throw new Error("Vector store is not ready yet.");
+}
 
-    const run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: "asst_EuIboyHjDFMN7HiHAMXF2pgO", // <-- Use your Assistant ID
-      tool_choice: "auto",
-      tool_resources: {
-        file_search: {
-          vector_store_ids: ["vs_68265a0e70b081918938e8df5060d328"], // <-- Use your Vector Store ID
-        },
-      },
-    });
+// Create a new thread
+const thread = await openai.beta.threads.create();
 
-    let runStatus = run;
-    while (runStatus.status !== "completed") {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-      if (["failed", "expired", "cancelled"].includes(runStatus.status)) {
-        throw new Error(`Run ${runStatus.status}`);
-      }
-    }
+// Add the user message
+await openai.beta.threads.messages.create(thread.id, {
+  role: "user",
+  content: userText,
+});
 
-    const messages = await openai.beta.threads.messages.list(thread.id);
-    const reply = messages.data[0]?.content[0]?.text?.value || "No response available.";
+// Start the assistant run using the vector store
+const run = await openai.beta.threads.runs.create(thread.id, {
+  assistant_id: "asst_EuIboyHjDFMN7HiHAMXF2pgO",
+  tool_choice: "auto",
+  tool_resources: {
+    file_search: {
+      vector_store_ids: [vectorStoreId],
+    },
+  },
+});
 
-    // === 🔒 OUTPUT FILTER (Failsafe Catch) ===
-    const isOffTopic = forbiddenKeywords.some((word) =>
-      reply.toLowerCase().includes(word)
-    );
+// Wait until run is completed
+let runStatus = run;
+while (runStatus.status !== "completed") {
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+  if (["failed", "expired", "cancelled"].includes(runStatus.status)) {
+    throw new Error(`Run ${runStatus.status}`);
+  }
+}
 
-    if (isOffTopic) {
-      return res.json({
-        text: "That response was off-topic. Professor Rich only discusses financial education. Please stay within the approved curriculum.",
-        audio: null,
-      });
-    }
+// Optional: Debug log
+console.log("Required action/tool status:", runStatus.required_action);
+
+// Get all messages from the thread
+const messages = await openai.beta.threads.messages.list(thread.id);
+
+// Safely find the latest assistant message
+const assistantReply = messages.data.find((m) => m.role === "assistant");
+const reply = assistantReply?.content[0]?.text?.value || "No response available.";
+
+// === 🔒 OUTPUT FILTER (Failsafe Catch) ===
+const isOffTopic = forbiddenKeywords.some((word) =>
+  reply.toLowerCase().includes(word)
+);
+
+if (isOffTopic) {
+  return res.json({
+    text: "That response was off-topic. Professor Rich only discusses financial education. Please stay within the approved curriculum.",
+    audio: null,
+  });
+}
+
+// ✅ Return valid AI response
+return res.json({
+  text: reply,
+  audio: null,
+});
+
 
     // === 🎧 Generate Audio ===
     const speechResponse = await openai.audio.speech.create({
