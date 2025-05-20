@@ -181,13 +181,10 @@ app.post("/ask", async (req, res) => {
   }
 });
 
-// --- Token endpoint for realtime voice ---
-// --- Token endpoint for realtime voice using existing tool ---
-// --- Token endpoint for realtime voice using Professor Rich with guardrails ---
 // --- Token endpoint for realtime voice using Professor Rich with guardrails & error trapping ---
 app.get("/token", async (req, res) => {
   try {
-    const resp = await fetch("https://api.openai.com/v1/realtime/sessions", {
+    const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -197,23 +194,12 @@ app.get("/token", async (req, res) => {
         model: "gpt-4o-mini-realtime-preview",
         voice: "sage",
         instructions: `
-You are Professor Rich — a calm, confident finance professor who explains investing topics with clarity, professionalism, and focus.
+You are Professor Rich — a calm, confident finance professor focused strictly on investing topics like valuation, risk, return, and diversification.
 
-🎓 Stick to these finance topics:
-- Stock valuation (e.g., P/E ratio, discounted cash flow)
-- Diversification and portfolio construction
-- Risk management and expected return
-- Asset classes and allocation
-- Economic principles that impact investing
+If asked about politics, religion, jokes, or anything off-topic, say:
+"I'm here to help you understand finance and investing. Let’s stick to those topics."
 
-🚫 Do not answer questions about:
-- Politics, religion, entertainment, jokes, or off-topic subjects.
-If asked off-topic, respond:
-"I'm here to help you understand finance and investing. Let’s stick to those topics!"
-
-✅ Always prioritize the knowledge base using the 'ensure_knowledge_base_usage' tool.
-✅ Only fall back to training material if the documents don't cover the question.
-✅ Confirm any financial terms or ticker symbols by repeating them back.
+Always prioritize attached documents using the 'ensure_knowledge_base_usage' tool.
         `.trim(),
         tools: [
           {
@@ -226,7 +212,7 @@ If asked off-topic, respond:
                 required: ["documents_vector_store", "training_fallback"],
                 properties: {
                   documents_vector_store: { type: "boolean" },
-                  training_fallback:     { type: "boolean" }
+                  training_fallback: { type: "boolean" }
                 },
                 additionalProperties: false
               }
@@ -236,48 +222,26 @@ If asked off-topic, respond:
       }),
     });
 
-    // Check HTTP status
-    if (!resp.ok) {
-      const errBody = await resp.text().catch(() => "");
-      console.error(`[Token] HTTP ${resp.status}:`, errBody);
-      return res.status(500).json({
-        error: "OpenAI token endpoint returned an error",
-        status: resp.status,
-        details: errBody
-      });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[TOKEN ERROR] Status ${response.status}: ${errorText}`);
+      return res.status(500).json({ error: "OpenAI token fetch failed", details: errorText });
     }
 
-    // Parse JSON safely
-    let data;
-    try {
-      data = await resp.json();
-    } catch (parseErr) {
-      console.error("[Token] JSON parse error:", parseErr);
-      return res.status(500).json({
-        error: "Failed to parse token response",
-        details: parseErr.message
-      });
-    }
+    const data = await response.json();
 
-    // Validate expected fields
     if (!data.token) {
-      console.error("[Token] Missing token in response:", data);
-      return res.status(500).json({
-        error: "Token not found in OpenAI response",
-        response: data
-      });
+      console.error("[TOKEN ERROR] No token returned:", data);
+      return res.status(500).json({ error: "Missing token in OpenAI response", raw: data });
     }
 
-    // Success
-    return res.json({ token: data.token, expires_in: data.expires_in });
-  } catch (err) {
-    console.error("[Token] Unexpected error:", err);
-    return res.status(500).json({
-      error: "Unexpected server error generating token",
-      details: err.message
-    });
+    res.json({ token: data.token, expires_in: data.expires_in });
+  } catch (error) {
+    console.error("[TOKEN ERROR] Unexpected:", error);
+    res.status(500).json({ error: "Token generation failed", details: error.message });
   }
 });
+
 
 
 
