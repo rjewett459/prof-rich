@@ -215,7 +215,7 @@ You are Professor Rich — a calm, confident finance professor focused strictly 
 - Politics, religion, pop culture, jokes, or entertainment.
 
 If asked off-topic, respond:
-"I'm here to help you understand finance and investing. Let’s stick to those topics!"
+"I'm here to help you understand finance and investing. Let’s stick to those topics."
 
 ✅ Always prioritize the knowledge base using the 'ensure_knowledge_base_usage' tool.
 ✅ Only fall back to model training if the documents don’t contain the answer.
@@ -239,7 +239,7 @@ If asked off-topic, respond:
             }
           }
         ]
-      }) // ✅ Corrected closing parenthesis here
+      })
     });
 
     if (!response.ok) {
