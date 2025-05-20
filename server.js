@@ -86,12 +86,13 @@ app.post("/ask", async (req, res) => {
     const isAllowed = allowedKeywords.some((word) => input.includes(word));
     const isForbidden = forbiddenKeywords.some((word) => input.includes(word));
 
-    if (!isAllowed || isForbidden) {
-      return res.json({
-        text: "Professor Rich only answers finance-related questions like Stock Valuation, Risk Management, or Portfolio Construction. Please ask a question on those topics.",
-        audio: null,
-      });
-    }
+    // if (!isAllowed || isForbidden) {
+//   return res.json({
+//     text: "Professor Rich only answers finance-related questions like Stock Valuation, Risk Management, or Portfolio Construction. Please ask a question on those topics.",
+//     audio: null,
+//   });
+// }
+
 
     // === 🧠 Create Assistant Run ===
     // Confirm the vector store is ready
