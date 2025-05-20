@@ -24,10 +24,33 @@ app.post("/ask", async (req, res) => {
 
     // === 🔒 INPUT FILTERS (Professor Rich Scope Lock) ===
     const allowedKeywords = [
-      "stock", "valuation", "portfolio", "risk", "diversification",
-      "investment", "return", "asset", "market", "volatility", "hedge",
-      "interest", "dividend", "capital", "DCF", "P/E", "equity", "bond"
-    ];
+  // Core investing terms
+  "stock", "valuation", "portfolio", "risk", "diversification",
+  "investment", "return", "asset", "volatility", "market", "bear", "bull",
+
+  // Fundamental & technical analysis
+  "fundamental", "technical", "support", "resistance", "P/E", "PEG", "EPS",
+  "cash flow", "free cash flow", "FCF", "ROE", "ROIC", "WACC", "alpha", "beta",
+  "r-squared", "standard deviation", "sharpe ratio", "earnings", "chart pattern",
+
+  // Strategy
+  "buy", "sell", "hold", "incremental buying", "buy zone", "dry powder",
+  "rebalance", "tax", "capital gains", "loss harvesting", "correction",
+  "death cross", "sentiment", "pullback", "momentum", "trading volume",
+
+  // Tools & mechanisms
+  "ETF", "QQQ", "QQQM", "index fund", "dividend", "liquidity", "down averaging",
+  "copy trade", "AI strategy", "alert", "threshold", "increment",
+
+  // Real estate terms (buying a home section)
+  "mortgage", "credit score", "interest rate", "down payment", "home loan",
+  "refinance", "debt to income", "FHA", "VA loan", "adjustable-rate", "fixed-rate",
+  "real estate", "housing", "new construction", "Zillow", "homeownership",
+
+  // Representation in finance
+  "black ceo", "african american", "venture capital", "Lulu Demmissie", "eToro"
+];
+
 
     const forbiddenKeywords = [
       // Music & entertainment
