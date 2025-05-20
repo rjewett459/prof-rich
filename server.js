@@ -16,165 +16,88 @@ const openai = new OpenAI({ apiKey });
 
 app.use(express.json());
 
-// Realtime assistant response route with full guardrails
+// AI Assistant Route with Vector Store First, Fallback Second
 app.post("/ask", async (req, res) => {
   try {
     const userText = req.body.text;
     if (!userText) return res.status(400).json({ error: "Missing text" });
 
-    // === 🔒 INPUT FILTERS (Professor Rich Scope Lock) ===
-    const allowedKeywords = [
-  // Core investing terms
-  "stock", "valuation", "portfolio", "risk", "diversification",
-  "investment", "return", "asset", "volatility", "market", "bear", "bull",
+    const thread = await openai.beta.threads.create();
 
-  // Fundamental & technical analysis
-  "fundamental", "technical", "support", "resistance", "P/E", "PEG", "EPS",
-  "cash flow", "free cash flow", "FCF", "ROE", "ROIC", "WACC", "alpha", "beta",
-  "r-squared", "standard deviation", "sharpe ratio", "earnings", "chart pattern",
-
-  // Strategy
-  "buy", "sell", "hold", "incremental buying", "buy zone", "dry powder",
-  "rebalance", "tax", "capital gains", "loss harvesting", "correction",
-  "death cross", "sentiment", "pullback", "momentum", "trading volume",
-
-  // Tools & mechanisms
-  "ETF", "QQQ", "QQQM", "index fund", "dividend", "liquidity", "down averaging",
-  "copy trade", "AI strategy", "alert", "threshold", "increment",
-
-  // Real estate terms (buying a home section)
-  "mortgage", "credit score", "interest rate", "down payment", "home loan",
-  "refinance", "debt to income", "FHA", "VA loan", "adjustable-rate", "fixed-rate",
-  "real estate", "housing", "new construction", "Zillow", "homeownership",
-
-  // Representation in finance
-  "black ceo", "african american", "venture capital", "Lulu Demmissie", "eToro"
-];
-
-
-    const forbiddenKeywords = [
-      // Music & entertainment
-      "rap", "hip hop", "lyrics", "music", "song", "album", "artist", "concert", "dj", "singer", "celebrity",
-
-      // Politics
-      "politics", "election", "democrat", "republican", "biden", "trump", "congress", "senate", "government", "policy", "president",
-
-      // Religion
-      "religion", "church", "bible", "jesus", "god", "pray", "faith", "spiritual", "pastor", "sermon",
-
-      // Health
-      "doctor", "medical", "medicine", "mental health", "hospital", "vaccine", "covid", "fitness", "diet", "therapy", "sick", "disease",
-
-      // Crypto
-      "crypto", "bitcoin", "ethereum", "blockchain", "nft", "web3", "token", "wallet", "mining",
-
-      // Tech
-      "coding", "python", "software", "hardware", "ai", "chatgpt",
-
-      // Pop culture
-      "tiktok", "instagram", "youtube", "movie", "netflix", "tv", "actor", "streaming", "celebrity",
-
-      // Sports
-      "football", "basketball", "nba", "nfl", "soccer", "mlb", "hockey", "team", "athlete", "match",
-
-      // Other
-      "dating", "relationships", "love", "astrology", "horoscope", "alien", "ufo", "dream", "conspiracy"
-    ];
-
-    const input = userText.toLowerCase();
-
-    const isAllowed = allowedKeywords.some((word) => input.includes(word));
-    const isForbidden = forbiddenKeywords.some((word) => input.includes(word));
-
-    // if (!isAllowed || isForbidden) {
-//   return res.json({
-//     text: "Professor Rich only answers finance-related questions like Stock Valuation, Risk Management, or Portfolio Construction. Please ask a question on those topics.",
-//     audio: null,
-//   });
-// }
-
-
-    // === 🧠 Create Assistant Run ===
-    // Confirm the vector store is ready
-const vectorStoreId = "vs_68265a0e70b081918938e8df5060d328";
-
-const vectorStoreStatus = await openai.beta.vectorStores.retrieve(vectorStoreId);
-if (vectorStoreStatus.status !== "completed") {
-  throw new Error("Vector store is not ready yet.");
-}
-
-// Create a new thread
-const thread = await openai.beta.threads.create();
-
-// Add the user message
-await openai.beta.threads.messages.create(thread.id, {
-  role: "user",
-  content: userText,
-});
-
-// Start the assistant run using the vector store
-const run = await openai.beta.threads.runs.create(thread.id, {
-  assistant_id: "asst_EuIboyHjDFMN7HiHAMXF2pgO",
-  tool_choice: "auto",
-  tool_resources: {
-    file_search: {
-      vector_store_ids: [vectorStoreId],
-    },
-  },
-});
-
-// Wait until run is completed
-let runStatus = run;
-while (runStatus.status !== "completed") {
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-  if (["failed", "expired", "cancelled"].includes(runStatus.status)) {
-    throw new Error(`Run ${runStatus.status}`);
-  }
-}
-
-// Optional: Debug log
-console.log("Required action/tool status:", runStatus.required_action);
-
-// Get all messages from the thread
-const messages = await openai.beta.threads.messages.list(thread.id);
-
-// Safely find the latest assistant message
-const assistantReply = messages.data.find((m) => m.role === "assistant");
-const reply = assistantReply?.content[0]?.text?.value || "No response available.";
-
-// === 🔒 OUTPUT FILTER (Failsafe Catch) ===
-const isOffTopic = forbiddenKeywords.some((word) =>
-  reply.toLowerCase().includes(word)
-);
-
-if (isOffTopic) {
-  return res.json({
-    text: "That response was off-topic. Professor Rich only discusses financial education. Please stay within the approved curriculum.",
-    audio: null,
-  });
-}
-
-// ✅ Return valid AI response
-return res.json({
-  text: reply,
-  audio: null,
-});
-
-
-    // === 🎧 Generate Audio ===
-    const speechResponse = await openai.audio.speech.create({
-      model: "tts-1",
-      voice: "sage",
-      input: reply,
+    await openai.beta.threads.messages.create(thread.id, {
+      role: "user",
+      content: userText,
     });
 
-    const audioBuffer = await speechResponse.arrayBuffer();
-    const base64Audio = Buffer.from(audioBuffer).toString("base64");
+    // === PASS 1: Vector Store Only ===
+    let run = await openai.beta.threads.runs.create(thread.id, {
+      assistant_id: "asst_EuIboyHjDFMN7HiHAMXF2pgO",
+      tool_choice: { type: "file_search" },
+      tool_resources: {
+        file_search: {
+          vector_store_ids: ["vs_68265a0e70b081918938e8df5060d328"],
+        },
+      },
+    });
+
+    // Wait for completion
+    let runStatus = run;
+    while (runStatus.status !== "completed") {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+      if (["failed", "expired", "cancelled"].includes(runStatus.status)) {
+        throw new Error(`Run ${runStatus.status}`);
+      }
+    }
+
+    let messages = await openai.beta.threads.messages.list(thread.id);
+    let reply = messages.data[0]?.content[0]?.text?.value || "";
+
+    console.log("🔍 Vector reply:", reply);
+
+    // === PASS 2: Fallback to Model if reply too short or generic ===
+    if (!reply || reply.length < 20) {
+      console.log("⚠️ Vector store insufficient. Retrying with model knowledge...");
+
+      await openai.beta.threads.messages.create(thread.id, {
+        role: "user",
+        content: userText,
+      });
+
+      run = await openai.beta.threads.runs.create(thread.id, {
+        assistant_id: "asst_EuIboyHjDFMN7HiHAMXF2pgO",
+        tool_choice: "auto", // Let it use model if vector fails
+      });
+
+      runStatus = run;
+      while (runStatus.status !== "completed") {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+        if (["failed", "expired", "cancelled"].includes(runStatus.status)) {
+          throw new Error(`Run ${runStatus.status}`);
+        }
+      }
+
+      messages = await openai.beta.threads.messages.list(thread.id);
+      reply = messages.data[0]?.content[0]?.text?.value || "No useful answer from fallback.";
+    }
+
+    // === Optional: Generate speech (only if meaningful reply)
+    let base64Audio = null;
+    if (reply && reply.length > 10) {
+      const speechResponse = await openai.audio.speech.create({
+        model: "tts-1",
+        voice: "sage",
+        input: reply,
+      });
+
+      const audioBuffer = await speechResponse.arrayBuffer();
+      base64Audio = Buffer.from(audioBuffer).toString("base64");
+    }
 
     res.json({
       text: reply,
-      audio: `data:audio/mp3;base64,${base64Audio}`,
+      audio: base64Audio ? `data:audio/mp3;base64,${base64Audio}` : null,
     });
   } catch (err) {
     console.error("Assistant /ask route error:", err);
@@ -182,7 +105,7 @@ return res.json({
   }
 });
 
-// === 🎙 Realtime Token Endpoint ===
+// Token endpoint for realtime voice
 app.get("/token", async (req, res) => {
   try {
     const response = await fetch(
@@ -207,7 +130,7 @@ app.get("/token", async (req, res) => {
   }
 });
 
-// === 🖥️ Serve Static Client Build ===
+// Serve static site
 if (isProd) {
   app.use(express.static(path.resolve(__dirname, "dist/client")));
 
