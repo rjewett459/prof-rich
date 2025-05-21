@@ -62,7 +62,9 @@ app.post("/ask", async (req, res) => {
 
     if (!userText) return res.status(400).json({ error: "Missing text in request body" });
 
-    const thread = await openai.beta.threads.create();
+    const threadId = await getOrCreateThreadId(userId);
+    const thread = await openai.beta.threads.retrieve(threadId);
+
 
     await openai.beta.threads.messages.create(thread.id, {
       role: "user",
