@@ -180,6 +180,11 @@ Avoid sounding robotic or defensive. Stay helpful, curious, and confident.
     res.status(500).json({ error: "Failed to create realtime session", details: err.message });
   }
 });
+// After getting `reply`
+if (reply.includes("Let’s stick to those topics.")) {
+  console.warn("⚠️ Filter triggered message: Overused off-topic fallback.");
+  reply = "Let’s focus on your financial goals. What would you like to learn more about?";
+}
 
 // --- Static Site Hosting (Prod vs Dev) ---
 if (isProd) {
