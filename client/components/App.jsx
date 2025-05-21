@@ -92,19 +92,35 @@ export default function App() {
   }
 
   function sendTextMessage(message) {
-    const event = {
-      type: "conversation.item.create",
-      item: {
-        type: "message",
-        role: "user",
-        content: [{ type: "input_text", text: message }],
-      },
-    };
+  const event = {
+    type: "conversation.item.create",
+    item: {
+      type: "message",
+      role: "user",
+      content: [{ type: "input_text", text: message }],
+    },
+  };
 
-    setTranscriptBubbles((prev) => [...prev, { text: message, sender: "user" }]);
-    sendClientEvent(event);
-    sendClientEvent({ type: "response.create" });
-  }
+  setTranscriptBubbles((prev) => [...prev, { text: message, sender: "user" }]);
+  sendClientEvent(event);
+  sendClientEvent({ type: "response.create" });
+
+  // ✅ Also send to your server-side assistant to track thread + memory
+  fetch("/ask", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: message,
+      user_id: "rick123" // ✅ Use a real user ID or pull from Supabase Auth later
+    }),
+  }).then((res) => res.json())
+    .then((data) => {
+      console.log("📥 /ask reply received:", data.text);
+    }).catch((err) => {
+      console.error("❌ /ask request failed:", err);
+    });
+}
+
 
   useEffect(() => {
     if (dataChannel) {
