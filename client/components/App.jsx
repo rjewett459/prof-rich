@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import logo from "/assets/logo-small-transparent.png";
 import SessionControls from "./SessionControls";
 import TranscriptBubble from "./TranscriptBubble";
-import supabase from "./supabaseClient"; // 👈 Import what we just created
+import supabase from "../../../supabaseClient";
 
 
 export default function App() {
