@@ -98,10 +98,11 @@ async function getOrCreateThreadId(userId) {
     .upsert({ user_id: userId, thread_id: newThread.id }, { onConflict: 'user_id' });
 
   if (upsertError) {
-    console.error(`Error saving new thread ID ${newThread.id} for user ${userId} to Supabase:`, upsertError);
-    // Depending on requirements, you might throw an error or allow proceeding with the new thread.
-    // For now, we proceed but log the error.
-  }
+  console.error("❌ Supabase upsert error:", upsertError);
+} else {
+  console.log("✅ Supabase thread saved:", { user_id: userId, thread_id: newThread.id });
+}
+
   
   console.log(`Created and stored new thread ID for user ${userId}: ${newThread.id}`);
   return newThread.id;
