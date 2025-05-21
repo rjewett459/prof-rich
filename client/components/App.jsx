@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import logo from "/assets/logo-small-transparent.png";
 import SessionControls from "./SessionControls";
 import TranscriptBubble from "./TranscriptBubble";
+import supabase from "./supabaseClient"; // 👈 Import what we just created
+
 
 export default function App() {
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -104,6 +106,11 @@ export default function App() {
   setTranscriptBubbles((prev) => [...prev, { text: message, sender: "user" }]);
   sendClientEvent(event);
   sendClientEvent({ type: "response.create" });
+  const {
+  data: { user },
+  } = await supabase.auth.getUser();
+
+  const userId = user?.email || user?.id || "anonymous_user"; // Fallback if not logged in
 
   // ✅ Also send to your server-side assistant to track thread + memory
   fetch("/ask", {
@@ -111,7 +118,7 @@ export default function App() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       text: message,
-      user_id: "rick123" // ✅ Use a real user ID or pull from Supabase Auth later
+      user_id: userId  // ✅ dynamic now
     }),
   }).then((res) => res.json())
     .then((data) => {
