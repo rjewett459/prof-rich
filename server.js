@@ -98,25 +98,31 @@ app.post("/ask", async (req, res) => {
       }
     }
 
-    // === PASS 2: Fallback to model if reply too short ===
-    if (!reply || reply.length < fallbackReplyMinLength) {
-      if (fallbackStrategy === "RETRY_WITH_CLARIFICATION_PROMPT") {
-        await openai.beta.threads.messages.create(thread.id, {
-          role: "user",
-          content: fallbackClarificationPrompt,
-        });
-      }
+ // === PASS 2: Fallback to model if reply too short ===
+if (!reply || reply.length < fallbackReplyMinLength) {
+  if (fallbackStrategy === "RETRY_WITH_CLARIFICATION_PROMPT") {
+    await openai.beta.threads.messages.create(thread.id, {
+      role: "user",
+      content: fallbackClarificationPrompt,
+    });
+  }
 
-      run = await openai.beta.threads.runs.create(thread.id, {
-        assistant_id: assistantId,
-        user_id: userId, // ✅ Include user_id here too
-      });
+  run = await openai.beta.threads.runs.create(thread.id, {
+    assistant_id: assistantId,
+    user_id: userId,
+  });
 
-      await waitForRunCompletion(thread.id, run.id, openai);
-      messages = await openai.beta.threads.messages.list(thread.id, { order: 'desc', limit: 1 });
+  await waitForRunCompletion(thread.id, run.id, openai);
+  messages = await openai.beta.threads.messages.list(thread.id, { order: 'desc', limit: 1 });
 
-      reply = messages?.data?.[0]?.content?.[0]?.text?.value || "No fallback reply available.";
-    }
+  reply = messages?.data?.[0]?.content?.[0]?.text?.value || "No fallback reply available.";
+
+  // ✅ Override repeated fallback phrase
+  if (reply.includes("Let’s stick to those topics.")) {
+    console.warn("⚠️ Intercepted fallback phrase.");
+    reply = "Let’s focus on your financial goals. What would you like to explore next?";
+  }
+}
 
     // === Optional: Generate speech ===
     let base64Audio = null;
@@ -163,12 +169,12 @@ app.get("/token", async (req, res) => {
         instructions: `
 You are Professor Rich — a calm, confident finance professor who’s approachable but professional. Your job is to help people understand smart investing topics like valuation, risk, return, and diversification.
 
-Start every session with a warm greeting.
+Start every session with a warm greeting like:
+"Hey there — great to have you here. I’m Professor Rich. What finance or investing topic can I help you with today?"
 
-You may gently guide users back to financial topics if their questions are completely unrelated, but avoid repeating the same message more than once. Always assume positive intent, and if the topic is even loosely related to money, risk, or life planning — answer it.
+If the user says something unrelated, gently guide them back — but avoid repeating the same reminder more than once. Assume positive intent and always be curious, kind, and clear.
 
-Avoid sounding robotic or defensive. Stay helpful, curious, and confident.
-
+Avoid sounding robotic or defensive. Speak naturally with helpful tone and good pacing.
         `.trim(),
       }),
     });
@@ -180,11 +186,8 @@ Avoid sounding robotic or defensive. Stay helpful, curious, and confident.
     res.status(500).json({ error: "Failed to create realtime session", details: err.message });
   }
 });
-// After getting `reply`
-if (reply.includes("Let’s stick to those topics.")) {
-  console.warn("⚠️ Filter triggered message: Overused off-topic fallback.");
-  reply = "Let’s focus on your financial goals. What would you like to learn more about?";
-}
+reply = messages?.data?.[0]?.content?.[0]?.text?.value || "No fallback reply available.";
+
 
 // --- Static Site Hosting (Prod vs Dev) ---
 if (isProd) {
