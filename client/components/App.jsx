@@ -93,7 +93,7 @@ export default function App() {
     }
   }
 
-  function sendTextMessage(message) {
+  async function sendTextMessage(message) {
   const event = {
     type: "conversation.item.create",
     item: {
