@@ -56,57 +56,64 @@ app.use(express.json());
  * or creates a new thread and stores its ID in Supabase.
  * Assumes a Supabase table 'user_threads' with columns: 'user_id' (text) and 'thread_id' (text).
  */
+/**
+ * Gets or creates a persistent thread ID for a given user in Supabase.
+ */
 async function getOrCreateThreadId(userId) {
-  const tableName = process.env.SUPABASE_THREAD_TABLE || 'user_threads';
-  
-  // 1. Check Supabase for an existing thread_id
+  const tableName = "user_threads"; // Make sure this matches your actual Supabase table name
+
+  console.log("🧠 [getOrCreateThreadId] Called for user:", userId);
+
+  // 1. Try to retrieve an existing thread ID
   const { data: existingThread, error: selectError } = await supabase
     .from(tableName)
-    .select('thread_id')
-    .eq('user_id', userId)
-    .maybeSingle(); // Use .maybeSingle() to handle 0 or 1 row without error for 0 rows
+    .select("thread_id")
+    .eq("user_id", userId)
+    .maybeSingle();
 
   if (selectError) {
-    console.error(`Error fetching thread ID for user ${userId} from Supabase:`, selectError);
-    throw new Error('Could not retrieve thread ID from database due to a query error.');
+    console.error("❌ Supabase select error:", selectError);
+    throw new Error("Could not check for existing thread ID.");
   }
 
-  if (existingThread && existingThread.thread_id) {
+  if (existingThread?.thread_id) {
+    console.log("📦 Found existing thread:", existingThread.thread_id);
     try {
-      // Verify thread exists on OpenAI's side before returning
       await openai.beta.threads.retrieve(existingThread.thread_id);
-      console.log(`Using existing thread ID for user ${userId}: ${existingThread.thread_id}`);
       return existingThread.thread_id;
-    } catch (openAiError) {
-      console.warn(`Thread ${existingThread.thread_id} for user ${userId} not found on OpenAI (Error: ${openAiError.message}). A new thread will be created.`);
-      // Optionally, delete the stale record from Supabase
-      // await supabase.from(tableName).delete().eq('thread_id', existingThread.thread_id);
+    } catch (verifyErr) {
+      console.warn("⚠️ Existing thread invalid on OpenAI side. Creating new one.");
     }
   }
 
-  // 2. If not found or stale, create a new OpenAI thread
-  console.log(`Creating a new OpenAI thread for user ${userId}.`);
+  // 2. Create new thread if none exists or OpenAI verification failed
   const newThread = await openai.beta.threads.create({
     metadata: { user_id: userId }
   });
 
-  // 3. Store the new thread_id in Supabase
-  // Upsert to handle cases where the thread was stale and we want to update it,
-  // or if a race condition occurred (though user_id should ideally be unique).
+  console.log("🆕 Created new thread on OpenAI:", newThread.id);
+
+  // 3. Save new thread to Supabase
   const { error: upsertError } = await supabase
     .from(tableName)
-    .upsert({ user_id: userId, thread_id: newThread.id }, { onConflict: 'user_id' });
+    .upsert(
+      { user_id: userId, thread_id: newThread.id },
+      { onConflict: "user_id" }
+    );
 
   if (upsertError) {
-  console.error("❌ Supabase upsert error:", upsertError);
-} else {
-  console.log("✅ Supabase thread saved:", { user_id: userId, thread_id: newThread.id });
-}
+    console.error("❌ Supabase upsert error:", upsertError);
+    // Optional: throw here if thread persistence is critical
+  } else {
+    console.log("✅ Supabase thread saved:", {
+      user_id: userId,
+      thread_id: newThread.id,
+    });
+  }
 
-  
-  console.log(`Created and stored new thread ID for user ${userId}: ${newThread.id}`);
   return newThread.id;
 }
+
 
 /**
  * Waits for an OpenAI run to complete.
@@ -334,6 +341,28 @@ app.post("/ask", async (req, res) => {
     const clientErrorMessage = isProd ? "An unexpected error occurred with the assistant." : err.message;
     res.status(500).json({ error: "Assistant request failed", details: clientErrorMessage });
   }
+});
+app.get("/debug-upsert", async (req, res) => {
+  const tableName = "user_threads";
+
+  const payload = {
+    user_id: "debug-user-001",
+    thread_id: "thread-test-abc123",
+  };
+
+  console.log("🧪 Trying manual upsert:", payload);
+
+  const { error } = await supabase
+    .from(tableName)
+    .upsert(payload, { onConflict: "user_id" });
+
+  if (error) {
+    console.error("❌ Supabase upsert failed:", error);
+    return res.status(500).json({ error: "Insert failed", details: error.message });
+  }
+
+  console.log("✅ Manual upsert successful.");
+  res.json({ message: "✅ Upsert worked", ...payload });
 });
 
 app.get("/token", async (req, res) => {
